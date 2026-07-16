@@ -1,1 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Send Email</title>
+<style>
+  :root {
+    --ink: #1c1c1e;
+    --muted: #6b6b70;
+    --line: #e2e2e5;
+    --accent: #2f5d50;
+    --accent-dark: #24473d;
+    --bg: #fafafa;
+    --error: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 24px 16px 60px;
+  }
+  .card {
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 4px 0 4px;
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+  fieldset {
+    border: none;
+    padding: 0;
+    margin: 0 0 20px;
+  }
+  legend {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin-bottom: 8px;
+    padding: 0;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    margin: 12px 0 6px;
+  }
+  input, textarea {
+    width: 100%;
+    font-size: 16px;
+    padding: 11px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--ink);
+    font-family: inherit;
+  }
+  input:focus, textarea:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+    border-color: var(--accent);
+  }
+  textarea {
+    min-height: 140px;
+    resize: vertical;
+  }
+  button {
+    width: 100%;
+    margin-top: 24px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  button:active { background: var(--accent-dark); }
+  button:disabled { background: #b7c2bd; }
+  .status {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    display: none;
+  }
+  .status.success { display: block; background: #e6f2ec; color: var(--accent-dark); }
+  .status.error { display: block; background: #fbebea; color: var(--error); }
+  .hint {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Send an email</h1>
+    <div class="sub">Sent through your own SMTP account</div>
 
+    <form id="emailForm">
+      <fieldset>
+        <legend>Access</legend>
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="App password" required>
+      </fieldset>
+
+      <fieldset>
+        <legend>From</legend>
+        <label for="senderName">Sender name</label>
+        <input type="text" id="senderName" placeholder="e.g. Jordan Lee" required>
+
+        <label for="senderEmail">Sender email</label>
+        <input type="email" id="senderEmail" placeholder="you@yourdomain.com" required>
+        <div class="hint">Usually must match your SMTP login or a verified alias</div>
+
+        <label for="replyTo">Reply-to (optional)</label>
+        <input type="email" id="replyTo" placeholder="replies-go-here@yourdomain.com">
+      </fieldset>
+
+      <fieldset>
+        <legend>Message</legend>
+        <label for="to">To</label>
+        <input type="email" id="to" placeholder="recipient@example.com" required>
+
+        <label for="subject">Subject</label>
+        <input type="text" id="subject" placeholder="Subject line" required>
+
+        <label for="body">Body</label>
+        <textarea id="body" placeholder="Write your message..." required></textarea>
+      </fieldset>
+
+      <button type="submit" id="sendBtn">Send email</button>
+      <div class="status" id="status"></div>
+    </form>
+  </div>
+
+<script>
+  // If you host the frontend separately from the backend, set this to your
+  // backend's full URL, e.g. "https://your-app.onrender.com"
+  const API_BASE = "";
+
+  const form = document.getElementById('emailForm');
+  const statusEl = document.getElementById('status');
+  const btn = document.getElementById('sendBtn');
+
+  const savedPassword = localStorage.getItem('emailAppPassword');
+  if (savedPassword) document.getElementById('password').value = savedPassword;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    statusEl.className = 'status';
+    statusEl.textContent = '';
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+
+    const password = document.getElementById('password').value;
+    localStorage.setItem('emailAppPassword', password);
+
+    const payload = {
+      password,
+      senderName: document.getElementById('senderName').value.trim(),
+      senderEmail: document.getElementById('senderEmail').value.trim(),
+      replyTo: document.getElementById('replyTo').value.trim(),
+      to: document.getElementById('to').value.trim(),
+      subject: document.getElementById('subject').value.trim(),
+      body: document.getElementById('body').value,
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/api/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        statusEl.className = 'status success';
+        statusEl.textContent = 'Email sent.';
+        form.reset();
+        document.getElementById('password').value = password;
+      } else {
+        statusEl.className = 'status error';
+        statusEl.textContent = data.error || 'Something went wrong.';
+      }
+    } catch (err) {
+      statusEl.className = 'status error';
+      statusEl.textContent = 'Could not reach the server. Check your connection.';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Send email';
+    }
+  });
+</script>
+</body>
+</html>
